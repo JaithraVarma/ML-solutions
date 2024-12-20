@@ -1,0 +1,12 @@
+AlexNet
+ResNet50
+GoogLeNet
+EfficientNet
+Inception3
+MNASNet
+MobileNetV2
+ShuffleNetV2
+SqueezeNet
+VGG
+DenseNet
+RegNet

@@ -1,0 +1,12 @@
+operator,occurence
+Constant,162
+QuantizeLinear,40
+DequantizeLinear,40
+Conv,8
+Relu,10
+MaxPool,5
+Pad,1
+AveragePool,1
+Mul,1
+Flatten,1
+Gemm,3

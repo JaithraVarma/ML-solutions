@@ -1,0 +1,10 @@
+./data/AlexNet
+./data/ResNet
+./data/GoogLeNet
+./data/EfficientNet
+./data/Inception3
+./data/MNASNet
+./data/MobileNetV2
+./data/ShuffleNetV2
+./data/SqueezeNet
+./data/VGG

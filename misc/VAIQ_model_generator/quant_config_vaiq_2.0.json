@@ -1,0 +1,33 @@
+{
+    "target_device": "DPU",
+    "quantizable_data_type": [
+        "input",
+        "weights",
+        "bias",
+        "activation"
+    ],
+    "overall_quantize_config": {
+        "bit_width": 8,
+        "method": "diffs",
+        "round_mode": "half_even",
+        "symmetry": false,
+        "per_channel": false,
+        "signed": true,
+        "narrow_range": false,
+        "scale_type": "power_of_two",
+        "calib_statistic_method": "modal"
+    },
+    "tensor_quantize_config": {
+        "bias": {
+            "bit_width": 16,
+            "method": "diffs",
+            "round_mode": "half_even",
+            "symmetry": false,
+            "per_channel": false,
+            "signed": true,
+            "narrow_range": false,
+            "scale_type": "float",
+            "calib_statistic_method": "median"
+        }
+    }
+}

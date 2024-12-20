@@ -1,0 +1,9 @@
+operator,occurence
+Constant,684
+QuantizeLinear,171
+DequantizeLinear,171
+Conv,52
+Relu,35
+Add,10
+ReduceMean,1
+Gemm,1

@@ -1,0 +1,15 @@
+operator,occurence
+Constant,713
+QuantizeLinear,175
+DequantizeLinear,175
+Gather,3
+Unsqueeze,3
+Mul,4
+Add,3
+Concat,10
+Conv,57
+Relu,57
+MaxPool,13
+GlobalAveragePool,1
+Flatten,1
+Gemm,1
