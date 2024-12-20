@@ -1,0 +1,126 @@
+########################### Help Section ######################################
+help:
+	$(ECHO) "Makefile Usage:"
+	$(ECHO) "  make all"
+	$(ECHO) "      Command to build everyone including rtp and analyzer input"
+	$(ECHO) ""
+	$(ECHO) "  make build"
+	$(ECHO) "      Command to build all output files (all mlirs)"
+	$(ECHO) ""
+	$(ECHO) "  make <CANONICAL_ONNX/ONNX_MLIR/TORCH_MLIR/XTEN_MLIR/LINALG_MLIR/LINALG_MLIR/DSE_MLIR/ORDER_MLIR>"
+	$(ECHO) "      Command to specific target (command does take care dependency order)."
+	$(ECHO) ""
+	$(ECHO) "  make clean "
+	$(ECHO) "      Command to remove the generated onnx, mlir files"
+	$(ECHO) ""
+
+###############################################################################
+########################### Default Configuration#################################
+USE_TA=yes
+ifeq (${USE_TA},yes)
+FLEXML_ROOT:=/proj/xbuilds/9999.0_INT_daily_latest/installs/all_platforms/flexml
+else
+FLEXML_ROOT:=/scratch/ML_Solutions/flexml_install/fxml_venv
+endif
+FLEXML_EXT:=${FLEXML_ROOT}/lib/python3.8/site-packages/flexml/flexml_extras
+MLLIB_ROOT:=${FLEXML_EXT}/ext/mllib
+MLLIB_OPS_FILE:=${FLEXML_ROOT}/L1/metadata/mllib_ops.json
+INPUT_DIR:=./
+OUTPUT_DIR:=./results
+OVERLAY:=4x4 #default overlay is 4x4
+tiling_params:="outputfile=tiling.h"
+device_file=${FLEXML_EXT}/data/deviceModels/VC2802.json 
+DSE_OVERRIDE:=
+########################### User Configuration#################################
+#Design specific configuration should be inside config.mk file
+include config.mk
+ifneq (${phase}, "")
+tiling_params+= "phase=${phase}"
+endif
+########################### FrontEnd specific targets ##################################
+build: CANONICAL_ONNX ONNX_MLIR TORCH_MLIR XTEN_MLIR LINALG_TORCH_MLIR LINALG_MLIR DSE_MLIR ORDER_MLIR RTPGEN TILING_PARAM
+all: build VISUAL_OUT 
+# Pre-MLIR frontend: takes quantized ONNX and processes it to remove quantization is it is not yet used in the MLIR flow.
+# - use batch size 1 (instead of 2, as specified in the ONNX file)
+# - use 4 input channels for layer 1 (as opposed to the 3 specified in the ONNX file)
+CANONICAL_ONNX:${OUTPUT_DIR}/${FILE_NAME}.canonical.onnx
+${OUTPUT_DIR}/${FILE_NAME}.canonical.onnx:${INPUT_DIR}/${FILE_NAME}.onnx
+	mkdir -p ${OUTPUT_DIR}
+	fxml OnnxCanonicalization --input-model=$< --output-model=$@ \
+	--working-dir=${OUTPUT_DIR} --batch-size 1 --input-channel-size 4
+
+
+# Convert to torch-mlir.
+# - trivialize the weights values (as they are not currently used in the MLIR flow)
+ONNX_MLIR:${OUTPUT_DIR}/${FILE_NAME}.onnx.mlir
+${OUTPUT_DIR}/${FILE_NAME}.onnx.mlir:${OUTPUT_DIR}/${FILE_NAME}.canonical.onnx
+	fxml OnnxCanonicalModelToOnnxMLIR -i $< -o $@
+
+TORCH_MLIR:${OUTPUT_DIR}/${FILE_NAME}.torch.mlir
+${OUTPUT_DIR}/${FILE_NAME}.torch.mlir:${OUTPUT_DIR}/${FILE_NAME}.onnx.mlir
+	FLEXML_ROOT=${FLEXML_ROOT} fxml OnnxMLIRToTorchMLIR -i $< -o $@
+
+# Produce vizualization files for Vitis Analyzer.
+VISUAL_OUT:${OUTPUT_DIR}/${FILE_NAME}.fused.viz.json
+${OUTPUT_DIR}/${FILE_NAME}.fused.viz.json:${OUTPUT_DIR}/${FILE_NAME}.onnx.mlir
+	FLEXML_ROOT=${FLEXML_ROOT} \
+	fxml FlexMLVisualization -i ${OUTPUT_DIR}/${FILE_NAME}.torch.mlir \
+	--summary-file ${OUTPUT_DIR}/${FILE_NAME}.flexml_summary \
+	--fused-graph-file ${OUTPUT_DIR}/${FILE_NAME}.fused.viz.json \
+	--org-graph-file ${OUTPUT_DIR}/${FILE_NAME}.nonfused.viz.json
+
+# Before calling DSE the torch MLIR needs to be lowered to intermediate dialects.
+# These are internal and should not be user facing.
+XTEN_MLIR:${OUTPUT_DIR}/${FILE_NAME}.xten.mlir
+${OUTPUT_DIR}/${FILE_NAME}.xten.mlir:${OUTPUT_DIR}/${FILE_NAME}.torch.mlir
+	FLEXML_ROOT=${FLEXML_ROOT} fxml TorchMLIRToXtenMLIR -i $< -o $@
+
+LINALG_TORCH_MLIR:${OUTPUT_DIR}/${FILE_NAME}.linalg.torch.mlir
+${OUTPUT_DIR}/${FILE_NAME}.linalg.torch.mlir:${OUTPUT_DIR}/${FILE_NAME}.xten.mlir
+	FLEXML_ROOT=${FLEXML_ROOT} fxml XTenMLIRToLinAlgTorchMLIR -i $< -o $@
+
+
+LINALG_MLIR:${OUTPUT_DIR}/${FILE_NAME}.linalg.mlir
+${OUTPUT_DIR}/${FILE_NAME}.linalg.mlir:${OUTPUT_DIR}/${FILE_NAME}.linalg.torch.mlir
+	FLEXML_ROOT=${FLEXML_ROOT} fxml LinAlgTorchMLIRToLinAlgMLIR -i $< -o $@
+
+########################### DSE specific targets ##################################
+# Call DSE to compute the tiling to be applied.
+DSE_MLIR:${OUTPUT_DIR}/${FILE_NAME}.dse.linalg.mlir
+${OUTPUT_DIR}/${FILE_NAME}.dse.linalg.mlir:${OUTPUT_DIR}/${FILE_NAME}.linalg.mlir ${DSE_OVERRIDE}
+	FLEXML_ROOT=${FLEXML_ROOT} fxml LinalgToDSE -i $< -o $@ \
+	--dse-args dse-hw-overlay=${OVERLAY} \
+	--dse-device-file ${device_file} 
+	#--dse-json-output ${OUTPUT_DIR}/${FILE_NAME}.dse.json \
+	#--dse-args dse-override=${DSE_OVERRIDE}
+
+# Generate ADF Graph
+ORDER_MLIR:${OUTPUT_DIR}/order.mlir
+${OUTPUT_DIR}/order.mlir:${OUTPUT_DIR}/${FILE_NAME}.dse.linalg.mlir
+	${FLEXML_ROOT}/bin/air-opt  -o $@  $< -air-mem-alloc="tilefile=tiling.h"
+
+TILING_PARAM:${OUTPUT_DIR}/tiling_param.mlir
+${OUTPUT_DIR}/tiling_param.mlir:${OUTPUT_DIR}/order.mlir
+	FLEXML_ROOT=${FLEXML_ROOT} ${FLEXML_ROOT}/bin/air-opt -o $@ $< -air-tiling-param-gen=${tiling_params}
+	#${FLEXML_ROOT}/bin/air-opt -o $@ $< -air-tiling-param-gen="outputfile=tiling.h phase=${phase}"
+
+########################### RTP Gen targets ##################################
+# Generate RTPs
+quant_param_file:=${OUTPUT_DIR}/quant_params.h5
+rtp_opts=quant-params-filename=${quant_param_file} mllib-json-filename=${MLLIB_OPS_FILE}
+RTPGEN:${OUTPUT_DIR}/rtpgen.mlir
+${OUTPUT_DIR}/rtpgen.mlir:${OUTPUT_DIR}/order.mlir ${quant_param_file}
+	FLEXML_ROOT=${FLEXML_ROOT} ${FLEXML_ROOT}/bin/air-opt --air-rtp-gen-pass="${rtp_opts}" -o $@ $<
+
+########################### clean ##################################
+clean:
+	rm -f ${OUTPUT_DIR}/*.canonical.onnx
+	rm -f ${OUTPUT_DIR}/*.xten.onnx
+	rm -f ${OUTPUT_DIR}/*.torch.connx
+	rm -f ${OUTPUT_DIR}/*.mlir
+	rm -f ${OUTPUT_DIR}/quant_params.h5
+	rm -f ${OUTPUT_DIR}/*.dse.json
+	rm -f ${OUTPUT_DIR}/*.viz.json
+	rm -f ${OUTPUT_DIR}/*.flexml_summary
+########################### clean all################################
+cleanall: clean

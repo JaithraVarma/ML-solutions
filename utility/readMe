@@ -1,0 +1,3 @@
+Command to run the generate_npy_from_image.py:
+
+python generate_npy_from_image.py --channel 64 --height 128 --width 128
