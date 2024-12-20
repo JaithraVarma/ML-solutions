@@ -1,0 +1,8 @@
+{
+    "directory_path" : "path/to/directory/containing/log/files/for/suite",
+    "output_dir" : "path to directory where the output excel file is to be saved",
+    "suite_name": "name of the suite",
+    "date": "date for which the logs should be considered",
+    "suite_index": "suite_index for the specific suite that should be present in the name of the .OUTPUT file. Ex: '190055'",
+    "is_ta_present":"should 'ta' be present in the name of the .OUTPUT file. True or False, default = True"
+}

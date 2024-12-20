@@ -1,0 +1,9 @@
+{
+
+    "csv_path": "./TaskReport_microkernel.csv",
+    "root_folder": ["/wrk/aiml_regr/HEAD/VAIML_REGRESSION/MICROKERNEL_NLP_STX_WIN_HW/"],
+    "suit_run_name": "20241116_030235_2189",
+    "output_path": "./MICROKERNEL_NLP_STX_WIN_HW_20241116_030235_2189.xlsx",
+    "is_ta_present":"False",
+    "dtype": "bf16"
+}

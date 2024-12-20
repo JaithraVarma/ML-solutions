@@ -1,0 +1,6 @@
+{
+    "suite_path": "path/to/suite",
+    "suite_date": "suite date",
+    "suite_index": "suite index",
+    "output_dir": "path/to/output_directory"
+}

@@ -1,0 +1,7 @@
+numpy==1.26.4
+nvidia-pyindex==1.0.9
+onnx==1.16.0
+onnx-graphsurgeon==0.5.2
+onnxruntime==1.17.3
+pandas==2.2.2
+PyYAML==6.0.1

@@ -1,0 +1,7 @@
+{
+    "excel_suite1_path" : "path/to/suite1/details/excel/file",
+    "excel_suite2_path" : "path/to/suite2/details/excel/file",
+    "suite1_name" : "name of suite1",
+    "suite2_name" : "name of suite2",
+    "output_dir" : "directory in which the output excel file is to be saved"
+}
