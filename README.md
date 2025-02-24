@@ -1,7 +1,3 @@
-Vitis ML Solutions
-==================
-
-This is created to capture ML Solutions team work
 
 Repo:
 
